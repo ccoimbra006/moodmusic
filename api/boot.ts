@@ -56,17 +56,23 @@ app.get("/api/logout", async (c) => {
 });
 
 // Setup admin user via secret key (for Railway deployment)
-// Works with both Google OAuth (existing user) and email/password (new user)
+// Only works for the authorized owner email
 app.post("/api/setup-admin", async (c) => {
-  const { email, secret, password, name } = await c.req.json();
-
-  // Validate secret key
-  const setupSecret = process.env.ADMIN_SETUP_SECRET;
-  if (!setupSecret || secret !== setupSecret) {
-    return c.json({ error: "Invalid secret key" }, 403);
-  }
-
   try {
+    const body = await c.req.json();
+    const { email, secret, password, name } = body || {};
+
+    // Only allow the owner email
+    if (!email || email !== "ccoimbra006@gmail.com") {
+      return c.json({ error: "Unauthorized - email not allowed" }, 403);
+    }
+
+    // Validate secret key
+    const setupSecret = process.env.ADMIN_SETUP_SECRET;
+    if (!setupSecret || secret !== setupSecret) {
+      return c.json({ error: "Invalid secret key" }, 403);
+    }
+
     const db = getDb();
 
     // Check if user already exists (e.g., logged in via Google)
@@ -102,8 +108,8 @@ app.post("/api/setup-admin", async (c) => {
       passwordHash,
       role: "admin",
       lastSignInAt: new Date(),
-    });
-    const userId = Number(result[0].insertId);
+    }).returning();
+    const userId = result[0]?.id || 1;
 
     return c.json({
       success: true,
@@ -213,8 +219,8 @@ app.get("/api/google/callback", async (c) => {
         email: googleUser.email,
         avatar: googleUser.picture ?? null,
         lastSignInAt: new Date(),
-      });
-      userId = Number(result[0].insertId);
+      }).returning();
+      userId = result[0]?.id ?? 1;
       console.log("[Google OAuth] Created new user:", userId);
     }
 
