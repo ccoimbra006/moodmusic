@@ -47,7 +47,7 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
     localStorage.removeItem("moodtrack_token");
     // Reset all queries and reload
     utils.invalidate();
-    window.location.href = "/login";
+    window.location.href = "/";
   }, [logoutMutation, utils]);
 
   return {
