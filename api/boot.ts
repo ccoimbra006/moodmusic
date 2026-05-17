@@ -56,8 +56,9 @@ app.get("/api/logout", async (c) => {
 });
 
 // Setup admin user via secret key (for Railway deployment)
+// Works with both Google OAuth (existing user) and email/password (new user)
 app.post("/api/setup-admin", async (c) => {
-  const { email, password, secret, name } = await c.req.json();
+  const { email, secret, password, name } = await c.req.json();
 
   // Validate secret key
   const setupSecret = process.env.ADMIN_SETUP_SECRET;
@@ -67,9 +68,8 @@ app.post("/api/setup-admin", async (c) => {
 
   try {
     const db = getDb();
-    const bcrypt = await import("bcryptjs");
 
-    // Check if user already exists
+    // Check if user already exists (e.g., logged in via Google)
     const existing = await db
       .select()
       .from(schema.users)
@@ -82,10 +82,19 @@ app.post("/api/setup-admin", async (c) => {
         .update(schema.users)
         .set({ role: "admin" })
         .where(eq(schema.users.id, existing[0].id));
-      return c.json({ success: true, message: "User promoted to admin", userId: existing[0].id });
+      return c.json({
+        success: true,
+        message: "User promoted to admin",
+        userId: existing[0].id,
+        role: "admin",
+      });
     }
 
-    // Create new admin user
+    // Create new admin user with email/password
+    if (!password) {
+      return c.json({ error: "Password required for new users" }, 400);
+    }
+    const bcrypt = await import("bcryptjs");
     const passwordHash = await bcrypt.default.hash(password, 10);
     const result = await db.insert(schema.users).values({
       email,
@@ -96,7 +105,12 @@ app.post("/api/setup-admin", async (c) => {
     });
     const userId = Number(result[0].insertId);
 
-    return c.json({ success: true, message: "Admin user created", userId });
+    return c.json({
+      success: true,
+      message: "Admin user created",
+      userId,
+      role: "admin",
+    });
   } catch (err) {
     console.error("[Setup Admin] Error:", err);
     return c.json({ error: "Failed to setup admin" }, 500);
@@ -234,26 +248,73 @@ app.use("/api/trpc/*", async (c) => {
 });
 app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 
-// Serve static frontend assets (must be AFTER API routes)
-app.use("/assets/*", serveStatic({ root: "./dist/public" }));
+// Serve static frontend assets manually (more reliable than serveStatic when bundled)
+// Using node:fs to read files from disk — works in Railway, local, and bundled
+const STATIC_ROOT = process.cwd() + "/dist/public";
 
-// SPA fallback: serve the Vite-built index.html for any non-API route
-// This serves the React app for routes like /login, /perfil, /admin, etc.
+// Debug: log what files exist on startup
+setTimeout(() => {
+  try {
+    const fs2 = require("fs");
+    const path2 = require("path");
+    const publicDir = path2.join(process.cwd(), "dist/public");
+    if (fs2.existsSync(publicDir)) {
+      const files = fs2.readdirSync(publicDir, { recursive: true });
+      console.log("[Static] dist/public exists with", files.length, "entries:", files.slice(0, 10).join(", "));
+    } else {
+      console.error("[Static] CRITICAL: dist/public does NOT exist at", publicDir);
+      const cwd = fs2.readdirSync(process.cwd());
+      console.error("[Static] CWD contents:", cwd.join(", "));
+    }
+  } catch (e) {
+    console.error("[Static] Error checking files:", e);
+  }
+}, 100);
+
+// Serve asset files (CSS, JS, images)
+app.use("/assets/*", async (c) => {
+  try {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const filePath = path.join(STATIC_ROOT, c.req.path);
+    // Security: prevent directory traversal
+    if (!filePath.startsWith(STATIC_ROOT)) return c.notFound();
+    if (!fs.existsSync(filePath)) return c.notFound();
+    const content = fs.readFileSync(filePath);
+    const ext = path.extname(filePath);
+    const mimeTypes: Record<string, string> = {
+      ".js": "application/javascript",
+      ".css": "text/css",
+      ".html": "text/html",
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+      ".svg": "image/svg+xml",
+      ".ico": "image/x-icon",
+    };
+    return c.body(content, 200, { "Content-Type": mimeTypes[ext] || "application/octet-stream" });
+  } catch {
+    return c.notFound();
+  }
+});
+
+// SPA fallback: serve index.html for any non-API route
 app.use("/*", async (c, next) => {
-  const path = c.req.path;
-  // Only handle non-API, non-asset routes
-  if (path.startsWith("/api/") || path.startsWith("/assets/")) {
+  const reqPath = c.req.path;
+  // Don't handle API routes
+  if (reqPath.startsWith("/api/") || reqPath.startsWith("/assets/")) {
     return next();
   }
   try {
     const fs = await import("node:fs");
-    const html = fs.readFileSync("./dist/public/index.html", "utf-8");
+    const html = fs.readFileSync(STATIC_ROOT + "/index.html", "utf-8");
     return c.html(html);
-  } catch {
+  } catch (err) {
+    console.error("[Static] Error serving index.html:", err);
     return c.html(
       `<!DOCTYPE html>
 <html lang="pt"><head><meta charset="UTF-8"><title>MoodTrack</title></head>
-<body><div id="root"></div><p>Loading...</p></body></html>`
+<body><div id="root"></div><p>Loading app...</p></body></html>`,
+      500
     );
   }
 });
