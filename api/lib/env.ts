@@ -1,7 +1,7 @@
 function getEnv(name: string): string {
   const value = process.env[name];
-  if (!value && process.env.NODE_ENV === "production") {
-    throw new Error(`Missing required environment variable: ${name}`);
+  if (!value) {
+    console.warn(`[ENV] WARNING: ${name} is not set, using empty string`);
   }
   return value ?? "";
 }

@@ -55,6 +55,54 @@ app.get("/api/logout", async (c) => {
   return c.redirect("/login", 302);
 });
 
+// Setup admin user via secret key (for Railway deployment)
+app.post("/api/setup-admin", async (c) => {
+  const { email, password, secret, name } = await c.req.json();
+
+  // Validate secret key
+  const setupSecret = process.env.ADMIN_SETUP_SECRET;
+  if (!setupSecret || secret !== setupSecret) {
+    return c.json({ error: "Invalid secret key" }, 403);
+  }
+
+  try {
+    const db = getDb();
+    const bcrypt = await import("bcryptjs");
+
+    // Check if user already exists
+    const existing = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, email))
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Promote existing user to admin
+      await db
+        .update(schema.users)
+        .set({ role: "admin" })
+        .where(eq(schema.users.id, existing[0].id));
+      return c.json({ success: true, message: "User promoted to admin", userId: existing[0].id });
+    }
+
+    // Create new admin user
+    const passwordHash = await bcrypt.default.hash(password, 10);
+    const result = await db.insert(schema.users).values({
+      email,
+      name: name || email.split("@")[0],
+      passwordHash,
+      role: "admin",
+      lastSignInAt: new Date(),
+    });
+    const userId = Number(result[0].insertId);
+
+    return c.json({ success: true, message: "Admin user created", userId });
+  } catch (err) {
+    console.error("[Setup Admin] Error:", err);
+    return c.json({ error: "Failed to setup admin" }, 500);
+  }
+});
+
 // Google OAuth callback
 app.get("/api/google/callback", async (c) => {
   const code = c.req.query("code");
@@ -188,25 +236,26 @@ app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 
 // Serve static frontend assets (must be AFTER API routes)
 app.use("/assets/*", serveStatic({ root: "./dist/public" }));
-app.use("/*", serveStatic({ root: "./dist/public" }));
 
-// SPA fallback: serve index.html for any non-API route
-app.get("*", (c) => {
-  return c.html(
-    `<!DOCTYPE html>
-<html lang="pt">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MoodTrack</title>
-    <script type="module" crossorigin src="/assets/index.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index.css" />
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
-</html>`
-  );
+// SPA fallback: serve the Vite-built index.html for any non-API route
+// This serves the React app for routes like /login, /perfil, /admin, etc.
+app.use("/*", async (c, next) => {
+  const path = c.req.path;
+  // Only handle non-API, non-asset routes
+  if (path.startsWith("/api/") || path.startsWith("/assets/")) {
+    return next();
+  }
+  try {
+    const fs = await import("node:fs");
+    const html = fs.readFileSync("./dist/public/index.html", "utf-8");
+    return c.html(html);
+  } catch {
+    return c.html(
+      `<!DOCTYPE html>
+<html lang="pt"><head><meta charset="UTF-8"><title>MoodTrack</title></head>
+<body><div id="root"></div><p>Loading...</p></body></html>`
+    );
+  }
 });
 
 export default app;
