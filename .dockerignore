@@ -1,5 +1,13 @@
-node_modules
-dist
-.git
-*.swp
+node_modules/
+dist/
+*.db
+*.db-journal
+.env
+.env.local
+coverage/
+.cache/
+.vite/
 *.log
+uploads/
+tmp/
+temp/
