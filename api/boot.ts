@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { HttpBindings } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
@@ -15,11 +16,7 @@ import * as cookie from "cookie";
 import { Session } from "@contracts/constants";
 import { getSessionCookieOptions } from "./lib/cookies";
 
-// Auto-create SQLite tables on startup
-if (isSQLite) {
-  const { setupSQLite } = await import("../db/setup-sqlite");
-  setupSQLite();
-}
+// Note: SQLite setup moved to start() function below to avoid top-level await
 
 const JWT_SECRET = new TextEncoder().encode(env.appSecret || "moodtrack-google-secret-key");
 
@@ -189,12 +186,45 @@ app.use("/api/trpc/*", async (c) => {
 });
 app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 
+// Serve static frontend assets (must be AFTER API routes)
+app.use("/assets/*", serveStatic({ root: "./dist/public" }));
+app.use("/*", serveStatic({ root: "./dist/public" }));
+
+// SPA fallback: serve index.html for any non-API route
+app.get("*", (c) => {
+  return c.html(
+    `<!DOCTYPE html>
+<html lang="pt">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MoodTrack</title>
+    <script type="module" crossorigin src="/assets/index.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>`
+  );
+});
+
 export default app;
 
-if (env.isProduction) {
+// Start server in an async function to avoid top-level await
+// (top-level await + require() causes "Cannot determine intended module format" error)
+async function start() {
+  // Auto-create SQLite tables on startup
+  if (isSQLite) {
+    const { setupSQLite } = await import("../db/setup-sqlite");
+    setupSQLite();
+  }
+
   const { serve } = await import("@hono/node-server");
   const port = parseInt(process.env.PORT || "3000");
   serve({ fetch: app.fetch, port }, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+    console.log(`[Server] Running on port ${port}`);
   });
 }
+
+start();
