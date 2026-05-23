@@ -26,11 +26,38 @@ app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
 
 // Debug route to verify env vars
 app.get("/api/debug/env", (c) => {
+  const dbUrl = env.databaseUrl || "";
+  let dbHost = "unknown";
+  try {
+    const url = new URL(dbUrl);
+    dbHost = url.hostname;
+  } catch { /* ignore */ }
+
   return c.json({
     appSecret: env.appSecret ? "set" : "EMPTY",
-    databaseUrl: env.databaseUrl ? "set" : "EMPTY",
+    databaseUrl: env.databaseUrl ? "set (host: " + dbHost + ")" : "EMPTY",
     googleClientId: env.googleClientId ? "set" : "EMPTY",
+    nodeEnv: process.env.NODE_ENV || "development",
   });
+});
+
+// Debug route to test PostgreSQL connection
+app.get("/api/debug/db", async (c) => {
+  try {
+    const { testConnection } = await import("./queries/connection");
+    const ok = await testConnection();
+    return c.json({
+      connected: ok,
+      databaseUrl: env.databaseUrl ? "SET" : "EMPTY",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    return c.json({
+      connected: false,
+      error: err.message,
+      code: err.code || "UNKNOWN",
+    }, 500);
+  }
 });
 
 // Clear cookies route
