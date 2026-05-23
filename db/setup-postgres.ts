@@ -1,33 +1,19 @@
-import { Pool } from "pg";
-
-function getPool() {
-  const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) throw new Error("DATABASE_URL not set");
-
-  return new Pool({
-    connectionString: dbUrl,
-    ssl: dbUrl.includes("railway.app") ? { rejectUnauthorized: false } : undefined,
-  });
-}
-
-export async function setupPostgres() {
-  const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) {
-    console.error("[Setup] DATABASE_URL not set!");
-    return false;
-  }
-
-  console.log("[Setup] Connecting to PostgreSQL...");
-  const pool = getPool();
-
+export async function setupPostgres(): Promise<boolean> {
   try {
-    // Test connection
-    const result = await pool.query("SELECT NOW()");
-    console.log("[Setup] PostgreSQL connection OK, server time:", result.rows[0].now);
+    const { testConnection, getPool } = await import("../api/queries/connection");
 
-    // Create tables
+    // Test connection first
+    const ok = await testConnection();
+    if (!ok) {
+      console.error("[Setup] Cannot connect to PostgreSQL");
+      return false;
+    }
+
+    const pool = getPool();
     const client = await pool.connect();
+
     try {
+      // Create all tables
       await client.query(`
         CREATE TABLE IF NOT EXISTS users (
           id SERIAL PRIMARY KEY,
@@ -131,15 +117,13 @@ export async function setupPostgres() {
         )
       `);
 
-      console.log("[Setup] All PostgreSQL tables created successfully!");
+      console.log("[Setup] All PostgreSQL tables created!");
       return true;
     } finally {
-      client.release();
+      client.release(); // Release client back to pool, don't close pool!
     }
   } catch (err: any) {
-    console.error("[Setup] PostgreSQL setup failed:", err.message);
+    console.error("[Setup] Error:", err.message);
     return false;
-  } finally {
-    await pool.end();
   }
 }
