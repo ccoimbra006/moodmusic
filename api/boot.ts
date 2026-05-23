@@ -328,20 +328,42 @@ app.use("/*", async (c, next) => {
 export default app;
 
 // Start server in an async function to avoid top-level await
-// (top-level await + require() causes "Cannot determine intended module format" error)
 async function start() {
-  // Setup PostgreSQL on startup
-  try {
-    const { setupPostgres } = await import("../db/setup-postgres");
-    await setupPostgres();
-  } catch (e) {
-    console.error("[Server] PostgreSQL setup error:", e);
+  const dbUrl = process.env.DATABASE_URL;
+  console.log("[Server] DATABASE_URL:", dbUrl ? "SET (" + dbUrl.substring(0, 30) + "...)" : "NOT SET");
+
+  // Setup PostgreSQL tables before starting server
+  let setupOk = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const { setupPostgres } = await import("../db/setup-postgres");
+      const result = await setupPostgres();
+      if (result) {
+        setupOk = true;
+        break;
+      }
+    } catch (e: any) {
+      console.error(`[Server] PostgreSQL setup attempt ${attempt} failed:`, e.message);
+    }
+    if (attempt < 3) {
+      console.log(`[Server] Retrying in 3 seconds...`);
+      await new Promise((r) => setTimeout(r, 3000));
+    }
   }
 
+  if (!setupOk) {
+    console.error("[Server] CRITICAL: Could not setup PostgreSQL after 3 attempts.");
+    console.error("[Server] Make sure DATABASE_URL is set in Railway Variables.");
+  }
+
+  // Start server regardless (so we can see error logs)
   const { serve } = await import("@hono/node-server");
   const port = parseInt(process.env.PORT || "3000");
   serve({ fetch: app.fetch, port }, () => {
     console.log(`[Server] Running on port ${port}`);
+    if (!setupOk) {
+      console.log("[Server] WARNING: Database not connected. Check DATABASE_URL.");
+    }
   });
 }
 

@@ -1,23 +1,31 @@
-import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { sql } from "drizzle-orm";
+
+function getPool() {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) throw new Error("DATABASE_URL not set");
+
+  return new Pool({
+    connectionString: dbUrl,
+    ssl: dbUrl.includes("railway.app") ? { rejectUnauthorized: false } : undefined,
+  });
+}
 
 export async function setupPostgres() {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
     console.error("[Setup] DATABASE_URL not set!");
-    return;
+    return false;
   }
 
   console.log("[Setup] Connecting to PostgreSQL...");
-  const pool = new Pool({ connectionString: dbUrl });
+  const pool = getPool();
 
   try {
     // Test connection
     const result = await pool.query("SELECT NOW()");
     console.log("[Setup] PostgreSQL connection OK, server time:", result.rows[0].now);
 
-    // Create tables using raw SQL (drizzle-kit push alternative)
+    // Create tables
     const client = await pool.connect();
     try {
       await client.query(`
@@ -124,11 +132,14 @@ export async function setupPostgres() {
       `);
 
       console.log("[Setup] All PostgreSQL tables created successfully!");
+      return true;
     } finally {
       client.release();
     }
-  } catch (err) {
-    console.error("[Setup] PostgreSQL setup failed:", err);
-    throw err;
+  } catch (err: any) {
+    console.error("[Setup] PostgreSQL setup failed:", err.message);
+    return false;
+  } finally {
+    await pool.end();
   }
 }
