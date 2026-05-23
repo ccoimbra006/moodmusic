@@ -7,7 +7,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
-import { isSQLite, getDb } from "./queries/connection";
+import { getDb } from "./queries/connection";
 import * as schema from "@db/schema";
 import { eq } from "drizzle-orm";
 import { SignJWT } from "jose";
@@ -330,10 +330,12 @@ export default app;
 // Start server in an async function to avoid top-level await
 // (top-level await + require() causes "Cannot determine intended module format" error)
 async function start() {
-  // Auto-create SQLite tables on startup
-  if (isSQLite) {
-    const { setupSQLite } = await import("../db/setup-sqlite");
-    setupSQLite();
+  // Setup PostgreSQL on startup
+  try {
+    const { setupPostgres } = await import("../db/setup-postgres");
+    await setupPostgres();
+  } catch (e) {
+    console.error("[Server] PostgreSQL setup error:", e);
   }
 
   const { serve } = await import("@hono/node-server");

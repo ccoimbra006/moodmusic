@@ -1,0 +1,10 @@
+Copia TUDO o que está abaixo e guarda num ficheiro chamado `.env` (sim, começa com ponto) dentro da pasta `app`:
+
+APP_ID=19deae8f-8d92-8937-8000-000094d66f9a
+APP_SECRET=AXiYd8ur0FDld1BMknw9cGMFKYLKTVHQ
+DATABASE_URL=mysql://3qfxArFWgW91m87.root:TWp6dWU4LhpuoAOYBreMolmxKRdethoT@ep-t4ni387b5e83b7519dc8.epsrv-t4n281l4mrmemi4zls9a.ap-southeast-1.privatelink.aliyuncs.com:4000/19deae85-59e2-8a2f-8000-0919d8afc766
+KIMI_AUTH_URL=https://auth.kimi.com
+KIMI_OPEN_URL=https://open.kimi.com
+OWNER_UNION_ID=d7cm08gl3dc8u3574mog
+SPOTIFY_CLIENT_ID=e237a37b3022467d9ecfa21727ee82f1
+SPOTIFY_CLIENT_SECRET=e05c206dba14480a9862887b6285a2b5

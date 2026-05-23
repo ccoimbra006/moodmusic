@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { createRouter, authedQuery, publicQuery } from "./middleware";
+import { eq, sql } from "drizzle-orm";
+import { createRouter, authedQuery, adminQuery, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import * as schema from "@db/schema";
 
@@ -56,4 +56,31 @@ export const usersRouter = createRouter({
 
       return updated[0];
     }),
+
+  // Admin only: get total user count
+  count: adminQuery.query(async () => {
+    const db = getDb();
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.users);
+    return { total: result[0]?.count ?? 0 };
+  }),
+
+  // Admin only: list all users (basic info)
+  list: adminQuery.query(async () => {
+    const db = getDb();
+    const users = await db
+      .select({
+        id: schema.users.id,
+        name: schema.users.name,
+        email: schema.users.email,
+        avatar: schema.users.avatar,
+        role: schema.users.role,
+        createdAt: schema.users.createdAt,
+        lastSignInAt: schema.users.lastSignInAt,
+      })
+      .from(schema.users)
+      .orderBy(schema.users.createdAt);
+    return users;
+  }),
 });

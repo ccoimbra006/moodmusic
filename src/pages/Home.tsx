@@ -56,7 +56,8 @@ export default function Home() {
   const { data: commentsData } = trpc.comments.getBySong.useQuery(
     { songId: todaySong?.id ?? 0 }, { enabled: hasSongId }
   );
-  const { data: myMoodData } = trpc.moods.getCurrent.useQuery(
+  // Mood do utilizador (para quando seleciona manualmente)
+  trpc.moods.getCurrent.useQuery(
     { songId: todaySong?.id ?? 0 }, { enabled: hasSongId && isAuthenticated }
   );
 

@@ -1,7 +1,8 @@
 FROM node:20-slim
 
-# Install Python and build tools for better-sqlite3 native compilation
+# Install PostgreSQL client and build tools
 RUN apt-get update && apt-get install -y \
+    postgresql-client \
     python3 \
     make \
     g++ \
@@ -20,6 +21,9 @@ COPY . .
 
 # Build the app (Vite frontend + esbuild backend)
 RUN npm run build
+
+# Run database migrations
+RUN npm run db:push || true
 
 # Expose the port Railway uses
 ENV PORT=3000
