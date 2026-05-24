@@ -15,6 +15,7 @@ import {
 import { Music, User, LogOut, Shield, Menu, X, Trophy, Search } from "lucide-react";
 import NotificationsBell from "./NotificationsBell";
 import StreakDisplay from "./StreakDisplay";
+import ThemeToggle from "./ThemeToggle";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -122,6 +123,8 @@ export default function Layout({ children }: LayoutProps) {
                 </Button>
 
                 <NotificationsBell />
+
+                <ThemeToggle />
 
                 {isAdmin && (
                   <Button

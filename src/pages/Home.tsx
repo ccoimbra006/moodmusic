@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { FollowButton } from "@/components/FollowButton";
 import ShareCard from "@/components/ShareCard";
+import ShareImage from "@/components/ShareImage";
 import MoodPoll from "@/components/MoodPoll";
+import LyricsDisplay from "@/components/LyricsDisplay";
+import RealtimeComments from "@/components/RealtimeComments";
 import { Loader2 } from "lucide-react";
 import {
   Heart,
@@ -28,6 +31,7 @@ import {
   Clock,
   Disc3,
   MessageSquareText,
+  Zap,
 } from "lucide-react";
 
 export default function Home() {
@@ -36,6 +40,7 @@ export default function Home() {
   const currentMood = useCurrentMood();
   const [commentText, setCommentText] = useState("");
   const [replyText, setReplyText] = useState("");
+  const [commentMode, setCommentMode] = useState<"classic" | "realtime">("classic");
   const [activeReplyId, setActiveReplyId] = useState<number | null>(null);
   const [expandedReplies, setExpandedReplies] = useState<Set<number>>(new Set());
   const [albumTilt, setAlbumTilt] = useState({ x: 0, y: 0 });
@@ -375,6 +380,15 @@ export default function Home() {
             </div>
           )}
 
+          {/* Lyrics */}
+          {todaySong && (
+            <LyricsDisplay
+              title={todaySong.title}
+              artist={todaySong.artist}
+              moodColor={tc.color}
+            />
+          )}
+
           {todaySong && (
             <div className="flex flex-wrap gap-3">
               <a href={todaySong.spotifyUrl ?? `https://open.spotify.com/track/${todaySong.spotifyId}`} target="_blank" rel="noopener noreferrer"
@@ -384,6 +398,12 @@ export default function Home() {
                 <ExternalLink className="w-5 h-5" /> Abrir no Spotify
               </a>
               <ShareCard
+                title={todaySong.title}
+                artist={todaySong.artist}
+                image={todaySong.image ?? undefined}
+                mood={todaySong.detectedMood ?? undefined}
+              />
+              <ShareImage
                 title={todaySong.title}
                 artist={todaySong.artist}
                 image={todaySong.image ?? undefined}
@@ -455,6 +475,33 @@ export default function Home() {
                 <MessageSquareText className="w-4.5 h-4.5 text-white" />
               </div>
               <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Comentarios</h2>
+
+              {/* Comment mode toggle */}
+              <div className="flex items-center gap-1 ml-auto">
+                <button
+                  onClick={() => setCommentMode("classic")}
+                  className="text-[10px] px-2 py-1 rounded-full transition-all"
+                  style={{
+                    background: commentMode === "classic" ? `color-mix(in srgb, ${tc.color} 15%, transparent)` : "transparent",
+                    color: commentMode === "classic" ? tc.color : "var(--text-muted)",
+                    border: `1px solid ${commentMode === "classic" ? tc.color + "30" : "transparent"}`,
+                  }}
+                >
+                  Classico
+                </button>
+                <button
+                  onClick={() => setCommentMode("realtime")}
+                  className="text-[10px] px-2 py-1 rounded-full transition-all flex items-center gap-1"
+                  style={{
+                    background: commentMode === "realtime" ? `color-mix(in srgb, ${tc.color} 15%, transparent)` : "transparent",
+                    color: commentMode === "realtime" ? tc.color : "var(--text-muted)",
+                    border: `1px solid ${commentMode === "realtime" ? tc.color + "30" : "transparent"}`,
+                  }}
+                >
+                  <Zap className="w-3 h-3" />
+                  Tempo Real
+                </button>
+              </div>
               <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full"
                 style={{ background: `color-mix(in srgb, ${tc.color} 12%, transparent)`, color: tc.color, border: `1px solid color-mix(in srgb, ${tc.color} 25%, transparent)` }}
               >{commentCount}</span>
@@ -525,8 +572,16 @@ export default function Home() {
               </div>
             )}
 
+            {/* Realtime Comments Mode */}
+            {commentMode === "realtime" && todaySong?.id && (
+              <RealtimeComments
+                songId={todaySong.id}
+                moodColor={tc.color}
+              />
+            )}
+
             {/* Empty State */}
-            {commentCount === 0 && (
+            {commentMode === "classic" && commentCount === 0 && (
               <div className="text-center py-10 opacity-60">
                 <MessageCircle className="w-12 h-12 mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
                 <p className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Nenhum comentario ainda</p>
@@ -534,7 +589,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* Comments List */}
+            {/* Comments List - Classic Mode */}
+            {commentMode === "classic" && (
             <div className="flex flex-col gap-3">
               {commentsData?.comments?.map((comment: { id: number; text: string; createdAt: Date | string; userId: number; userName: string | null; userAvatar: string | null; replies?: { id: number; text: string; createdAt: Date | string; userId: number; userName: string | null; }[] }, idx: number) => {
                 const replyCount = comment.replies?.length ?? 0;
@@ -654,6 +710,7 @@ export default function Home() {
                 );
               })}
             </div>
+            )}
           </div>
         </section>
       )}

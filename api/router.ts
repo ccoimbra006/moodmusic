@@ -15,6 +15,7 @@ import { streaksRouter } from "./streaks-router";
 import { badgesRouter } from "./badges-router";
 import { notificationsRouter } from "./notifications-router";
 import { pollsRouter } from "./polls-router";
+import { lyricsRouter } from "./lyrics-router";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -36,6 +37,7 @@ export const appRouter = createRouter({
   badges: badgesRouter,
   notifications: notificationsRouter,
   polls: pollsRouter,
+  lyrics: lyricsRouter,
 });
 
 export type AppRouter = typeof appRouter;
