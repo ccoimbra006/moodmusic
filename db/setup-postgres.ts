@@ -20,6 +20,8 @@ export async function setupPostgres(): Promise<boolean> {
           "unionId" VARCHAR(255) UNIQUE,
           "googleId" VARCHAR(255) UNIQUE,
           email VARCHAR(320) UNIQUE,
+          "emailConfirmed" INTEGER DEFAULT 0 NOT NULL,
+          "confirmationToken" VARCHAR(255),
           "passwordHash" VARCHAR(255),
           name VARCHAR(255),
           avatar TEXT,

@@ -5,6 +5,8 @@ export const users = pgTable("users", {
   unionId: text("unionId", { length: 255 }).unique(),
   googleId: text("googleId", { length: 255 }).unique(),
   email: text("email", { length: 320 }).unique(),
+  emailConfirmed: integer("emailConfirmed").default(0).notNull(),
+  confirmationToken: text("confirmationToken", { length: 255 }),
   passwordHash: text("passwordHash", { length: 255 }),
   name: text("name", { length: 255 }),
   avatar: text("avatar"),
