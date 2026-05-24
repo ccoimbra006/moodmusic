@@ -12,7 +12,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Music, User, LogOut, Shield, Menu, X } from "lucide-react";
+import { Music, User, LogOut, Shield, Menu, X, Trophy, Search } from "lucide-react";
+import NotificationsBell from "./NotificationsBell";
+import StreakDisplay from "./StreakDisplay";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -95,6 +97,32 @@ export default function Layout({ children }: LayoutProps) {
 
             {isAuthenticated ? (
               <>
+                <StreakDisplay />
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/explore")}
+                  className="btn-lift text-xs hidden lg:flex"
+                  style={{ color: location.pathname === "/explore" ? mc.color : "var(--text-secondary)" }}
+                >
+                  <Search className="w-3.5 h-3.5 mr-1" />
+                  Explorar
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/leaderboard")}
+                  className="btn-lift text-xs hidden lg:flex"
+                  style={{ color: location.pathname === "/leaderboard" ? mc.color : "var(--text-secondary)" }}
+                >
+                  <Trophy className="w-3.5 h-3.5 mr-1" />
+                  Ranking
+                </Button>
+
+                <NotificationsBell />
+
                 {isAdmin && (
                   <Button
                     variant="ghost"

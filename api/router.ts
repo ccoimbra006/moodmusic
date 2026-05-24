@@ -11,6 +11,10 @@ import { moodsRouter } from "./moods-router";
 import { historyRouter } from "./history-router";
 import { followsRouter } from "./follows-router";
 import { timelineRouter } from "./timeline-router";
+import { streaksRouter } from "./streaks-router";
+import { badgesRouter } from "./badges-router";
+import { notificationsRouter } from "./notifications-router";
+import { pollsRouter } from "./polls-router";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -28,6 +32,10 @@ export const appRouter = createRouter({
   history: historyRouter,
   follows: followsRouter,
   timeline: timelineRouter,
+  streaks: streaksRouter,
+  badges: badgesRouter,
+  notifications: notificationsRouter,
+  polls: pollsRouter,
 });
 
 export type AppRouter = typeof appRouter;

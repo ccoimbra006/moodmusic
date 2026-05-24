@@ -117,6 +117,62 @@ export async function setupPostgres(): Promise<boolean> {
         )
       `);
 
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS "userStreaks" (
+          id SERIAL PRIMARY KEY,
+          "userId" INTEGER NOT NULL UNIQUE REFERENCES users(id),
+          "currentStreak" INTEGER DEFAULT 0 NOT NULL,
+          "longestStreak" INTEGER DEFAULT 0 NOT NULL,
+          "lastVisitDate" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS "userBadges" (
+          id SERIAL PRIMARY KEY,
+          "userId" INTEGER NOT NULL REFERENCES users(id),
+          badge VARCHAR(50) NOT NULL,
+          "earnedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+          UNIQUE("userId", badge)
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id SERIAL PRIMARY KEY,
+          "userId" INTEGER NOT NULL REFERENCES users(id),
+          type VARCHAR(30) NOT NULL,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          read INTEGER DEFAULT 0 NOT NULL,
+          metadata TEXT,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS "moodPolls" (
+          id SERIAL PRIMARY KEY,
+          question TEXT NOT NULL,
+          options TEXT NOT NULL,
+          "endsAt" TIMESTAMP WITH TIME ZONE NOT NULL,
+          "createdBy" INTEGER REFERENCES users(id),
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS "moodVotes" (
+          id SERIAL PRIMARY KEY,
+          "pollId" INTEGER NOT NULL REFERENCES "moodPolls"(id),
+          "userId" INTEGER NOT NULL REFERENCES users(id),
+          option VARCHAR(50) NOT NULL,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+          UNIQUE("pollId", "userId")
+        )
+      `);
+
       console.log("[Setup] All PostgreSQL tables created!");
       return true;
     } finally {

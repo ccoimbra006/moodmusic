@@ -104,3 +104,62 @@ export const userActivity = pgTable("userActivity", {
 });
 
 export type UserActivity = typeof userActivity.$inferSelect;
+
+// ── Streaks: dias seguidos que o user visitou ──
+export const userStreaks = pgTable("userStreaks", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id).unique(),
+  currentStreak: integer("currentStreak").default(0).notNull(),
+  longestStreak: integer("longestStreak").default(0).notNull(),
+  lastVisitDate: timestamp("lastVisitDate", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type UserStreak = typeof userStreaks.$inferSelect;
+
+// ── Badges: conquistas dos users ──
+export const userBadges = pgTable("userBadges", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  badge: text("badge", { length: 50 }).notNull(),
+  earnedAt: timestamp("earnedAt", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type UserBadge = typeof userBadges.$inferSelect;
+
+// ── Notifications ──
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  type: text("type", { length: 30 }).notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  read: integer("read").default(0).notNull(),
+  metadata: text("metadata"),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+
+// ── Mood Polls: enquetes de mood ──
+export const moodPolls = pgTable("moodPolls", {
+  id: serial("id").primaryKey(),
+  question: text("question").notNull(),
+  options: text("options").notNull(), // JSON array
+  endsAt: timestamp("endsAt", { withTimezone: true }).notNull(),
+  createdBy: integer("createdBy").references(() => users.id),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type MoodPoll = typeof moodPolls.$inferSelect;
+
+// ── Mood Votes: votos nas enquetes ──
+export const moodVotes = pgTable("moodVotes", {
+  id: serial("id").primaryKey(),
+  pollId: integer("pollId").notNull().references(() => moodPolls.id),
+  userId: integer("userId").notNull().references(() => users.id),
+  option: text("option", { length: 50 }).notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type MoodVote = typeof moodVotes.$inferSelect;
