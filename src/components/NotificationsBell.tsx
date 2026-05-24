@@ -59,7 +59,7 @@ export default function NotificationsBell() {
           }}
         >
           <div className="p-3 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-            <span className="text-sm font-semibold">Notificacoes</span>
+            <span className="text-sm font-semibold">Notificações</span>
             {(unread?.count ?? 0) > 0 && (
               <button onClick={() => markAllRead.mutate()} className="text-xs hover:underline" style={{ color: "#00d4ff" }}>
                 Marcar todas como lidas

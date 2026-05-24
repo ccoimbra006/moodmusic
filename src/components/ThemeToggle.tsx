@@ -17,25 +17,25 @@ export default function ThemeToggle() {
   function applyTheme(t: Theme) {
     const root = document.documentElement;
     if (t === "light") {
-      root.style.setProperty("--bg-base", "#f0f0f5");
-      root.style.setProperty("--bg-mid", "#e4e4ea");
-      root.style.setProperty("--bg-card", "rgba(255,255,255,0.8)");
+      root.classList.add("light");
+      root.classList.remove("dark");
+      root.style.setProperty("--bg-deep", "#f5f5fa");
+      root.style.setProperty("--bg-mid", "#eaeaf0");
       root.style.setProperty("--text-primary", "#1a1a2e");
-      root.style.setProperty("--text-secondary", "#444466");
-      root.style.setProperty("--text-muted", "#8888aa");
-      root.style.setProperty("--glass-border", "rgba(0,0,0,0.08)");
-      document.body.style.background = "#f0f0f5";
+      root.style.setProperty("--text-secondary", "rgba(26,26,46,0.65)");
+      root.style.setProperty("--text-muted", "rgba(26,26,46,0.4)");
+      document.body.style.background = "#f5f5fa";
       document.body.style.color = "#1a1a2e";
     } else {
-      root.style.setProperty("--bg-base", "#06060a");
-      root.style.setProperty("--bg-mid", "#0e0e14");
-      root.style.setProperty("--bg-card", "rgba(255,255,255,0.04)");
-      root.style.setProperty("--text-primary", "#e8e8f0");
-      root.style.setProperty("--text-secondary", "#a0a0b8");
-      root.style.setProperty("--text-muted", "#606070");
-      root.style.setProperty("--glass-border", "rgba(255,255,255,0.06)");
-      document.body.style.background = "#06060a";
-      document.body.style.color = "#e8e8f0";
+      root.classList.add("dark");
+      root.classList.remove("light");
+      root.style.setProperty("--bg-deep", "#0a0a0f");
+      root.style.setProperty("--bg-mid", "#12121a");
+      root.style.setProperty("--text-primary", "#f0f0f0");
+      root.style.setProperty("--text-secondary", "rgba(240,240,240,0.6)");
+      root.style.setProperty("--text-muted", "rgba(240,240,240,0.4)");
+      document.body.style.background = "#0a0a0f";
+      document.body.style.color = "#f0f0f0";
     }
   }
 
@@ -55,7 +55,7 @@ export default function ThemeToggle() {
       {theme === "dark" ? (
         <Sun className="w-5 h-5" style={{ color: "#ffd60a" }} />
       ) : (
-        <Moon className="w-5 h-5" style={{ color: "#8b5cf6" }} />
+        <Moon className="w-5 h-5" style={{ color: "#5b4fd8" }} />
       )}
     </button>
   );
