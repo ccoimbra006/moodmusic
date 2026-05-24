@@ -98,51 +98,57 @@ export default function Layout({ children }: LayoutProps) {
 
             {isAuthenticated ? (
               <>
-                <StreakDisplay />
+                <div className="flex items-center gap-1">
+                  <StreakDisplay />
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate("/explore")}
-                  className="btn-lift text-xs hidden lg:flex"
-                  style={{ color: location.pathname === "/explore" ? mc.color : "var(--text-secondary)" }}
-                >
-                  <Search className="w-3.5 h-3.5 mr-1" />
-                  Explorar
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate("/leaderboard")}
-                  className="btn-lift text-xs hidden lg:flex"
-                  style={{ color: location.pathname === "/leaderboard" ? mc.color : "var(--text-secondary)" }}
-                >
-                  <Trophy className="w-3.5 h-3.5 mr-1" />
-                  Ranking
-                </Button>
-
-                <NotificationsBell />
-
-                <ThemeToggle />
-
-                {isAdmin && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigate("/admin")}
-                    className="btn-lift text-xs"
-                    style={{
-                      color:
-                        location.pathname === "/admin"
-                          ? mc.color
-                          : "rgba(240,240,240,0.6)",
-                    }}
+                    onClick={() => navigate("/explore")}
+                    className="btn-lift text-xs hidden lg:flex h-9 px-3"
+                    style={{ color: location.pathname === "/explore" ? mc.color : "var(--text-secondary)" }}
                   >
-                    <Shield className="w-4 h-4 mr-1" />
-                    Admin
+                    <Search className="w-4 h-4 mr-1.5" />
+                    Explorar
                   </Button>
-                )}
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/leaderboard")}
+                    className="btn-lift text-xs hidden lg:flex h-9 px-3"
+                    style={{ color: location.pathname === "/leaderboard" ? mc.color : "var(--text-secondary)" }}
+                  >
+                    <Trophy className="w-4 h-4 mr-1.5" />
+                    Ranking
+                  </Button>
+
+                  <div className="flex items-center">
+                    <NotificationsBell />
+                  </div>
+
+                  <div className="flex items-center">
+                    <ThemeToggle />
+                  </div>
+
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate("/admin")}
+                      className="btn-lift text-xs h-9 px-3"
+                      style={{
+                        color:
+                          location.pathname === "/admin"
+                            ? mc.color
+                            : "rgba(240,240,240,0.6)",
+                      }}
+                    >
+                      <Shield className="w-4 h-4 mr-1.5" />
+                      Admin
+                    </Button>
+                  )}
+                </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button

@@ -34,10 +34,10 @@ export default function NotificationsBell() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center">
       <button
         onClick={() => setOpen(!open)}
-        className="relative p-2 rounded-full transition-all hover:bg-white/10"
+        className="relative p-2 rounded-full transition-all hover:bg-white/10 h-9 w-9 flex items-center justify-center"
       >
         <Bell className="w-5 h-5" style={{ color: "var(--text-secondary)" }} />
         {(unread?.count ?? 0) > 0 && (

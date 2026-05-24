@@ -39,7 +39,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleDimmed}
-      className="p-2 rounded-full transition-all hover:bg-white/10"
+      className="rounded-full transition-all hover:bg-white/10 h-9 w-9 flex items-center justify-center"
       title="Modo conforto (reduz brilho)"
     >
       <Moon className="w-5 h-5" style={{ color: "#a0a0b8" }} />
