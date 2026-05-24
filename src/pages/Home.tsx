@@ -390,26 +390,24 @@ export default function Home() {
           )}
 
           {todaySong && (
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <a href={todaySong.spotifyUrl ?? `https://open.spotify.com/track/${todaySong.spotifyId}`} target="_blank" rel="noopener noreferrer"
-                className="btn-lift inline-flex items-center gap-2.5 text-white px-6 py-3.5 rounded-full text-sm font-bold"
+                className="btn-lift inline-flex items-center gap-2.5 text-white px-5 py-2.5 rounded-full text-sm font-bold"
                 style={{ background: `linear-gradient(135deg, ${tc.color}, ${tc.color2})`, boxShadow: `0 4px 20px ${tc.glow}` }}
               >
-                <ExternalLink className="w-5 h-5" /> Abrir no Spotify
+                <ExternalLink className="w-4 h-4" /> Abrir no Spotify
               </a>
-              <div className="flex items-center justify-center gap-3 w-full">
-                <ShareCard
-                  title={todaySong.title}
-                  artist={todaySong.artist}
-                  moodColor={tc.color}
-                />
-                <ShareImage
-                  title={todaySong.title}
-                  artist={todaySong.artist}
-                  image={todaySong.image ?? undefined}
-                  mood={todaySong.detectedMood ?? undefined}
-                />
-              </div>
+              <ShareCard
+                title={todaySong.title}
+                artist={todaySong.artist}
+                moodColor={tc.color}
+              />
+              <ShareImage
+                title={todaySong.title}
+                artist={todaySong.artist}
+                image={todaySong.image ?? undefined}
+                mood={todaySong.detectedMood ?? undefined}
+              />
             </div>
           )}
 
