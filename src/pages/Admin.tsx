@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Search, Plus, ArrowLeft, Music, Loader2, Crown } from "lucide-react";
+import { Search, Plus, ArrowLeft, Music, Loader2, Crown, Users, UserCheck, Calendar } from "lucide-react";
 
 interface SpotifyTrack {
   id: string;
@@ -44,6 +44,10 @@ export default function Admin() {
     },
     onError: () => toast.error("Erro ao publicar musica"),
   });
+
+  // Admin stats - user count and list
+  const { data: userCount } = trpc.users.count.useQuery(undefined, { enabled: isAdmin });
+  const { data: usersList } = trpc.users.list.useQuery(undefined, { enabled: isAdmin });
 
   const handleSearch = () => {
     if (!query.trim()) return;
@@ -174,6 +178,100 @@ export default function Admin() {
           <p style={{ color: "var(--text-muted)" }}>Digite o nome de uma musica ou artista para buscar no Spotify</p>
         </div>
       )}
+
+      {/* Stats Section */}
+      <div className="mt-12 pt-8" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+          <Users className="w-5 h-5" style={{ color: mc.color }} />
+          Estatisticas de Usuarios
+        </h2>
+
+        {/* Total users card */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <Card style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(24px)", border: `1px solid color-mix(in srgb, ${mc.color} 20%, rgba(255,255,255,0.1))` }}>
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${mc.color}, ${mc.color2})`, boxShadow: `0 0 15px ${mc.glow}` }}>
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{userCount?.total ?? 0}</div>
+                <div className="text-xs" style={{ color: "var(--text-muted)" }}>Total de usuarios</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(24px)", border: `1px solid color-mix(in srgb, ${mc.color} 20%, rgba(255,255,255,0.1))` }}>
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #00ff9d, #00d4ff)" }}>
+                <UserCheck className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{usersList?.filter(u => u.role === "admin").length ?? 0}</div>
+                <div className="text-xs" style={{ color: "var(--text-muted)" }}>Administradores</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(24px)", border: `1px solid color-mix(in srgb, ${mc.color} 20%, rgba(255,255,255,0.1))` }}>
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #ffd60a, #ff7b00)" }}>
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{usersList?.length ?? 0}</div>
+                <div className="text-xs" style={{ color: "var(--text-muted)" }}>Registados hoje</div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Users table */}
+        {usersList && usersList.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                  <th className="text-left p-3 font-semibold" style={{ color: "var(--text-muted)" }}>ID</th>
+                  <th className="text-left p-3 font-semibold" style={{ color: "var(--text-muted)" }}>Nome</th>
+                  <th className="text-left p-3 font-semibold" style={{ color: "var(--text-muted)" }}>Email</th>
+                  <th className="text-left p-3 font-semibold" style={{ color: "var(--text-muted)" }}>Role</th>
+                  <th className="text-left p-3 font-semibold" style={{ color: "var(--text-muted)" }}>Registro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usersList.map((u) => (
+                  <tr key={u.id} className="transition-colors hover:bg-white/5" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <td className="p-3 font-mono text-xs" style={{ color: "var(--text-muted)" }}>#{u.id}</td>
+                    <td className="p-3 font-medium">{u.name || "—"}</td>
+                    <td className="p-3" style={{ color: "var(--text-secondary)" }}>{u.email || "—"}</td>
+                    <td className="p-3">
+                      <span className="px-2 py-1 rounded-full text-xs font-bold"
+                        style={{
+                          background: u.role === "admin" ? "rgba(0,255,157,0.15)" : "rgba(255,255,255,0.1)",
+                          color: u.role === "admin" ? "#00ff9d" : "var(--text-muted)",
+                          border: u.role === "admin" ? "1px solid rgba(0,255,157,0.3)" : "1px solid transparent",
+                        }}
+                      >
+                        {u.role === "admin" ? "ADMIN" : "USER"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString("pt-PT") : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {(!usersList || usersList.length === 0) && (
+          <div className="text-center py-8">
+            <Users className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--text-muted)", opacity: 0.5 }} />
+            <p style={{ color: "var(--text-muted)" }}>Nenhum usuario registado ainda</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
