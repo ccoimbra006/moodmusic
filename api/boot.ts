@@ -82,6 +82,41 @@ app.get("/api/logout", async (c) => {
   return c.redirect("/login", 302);
 });
 
+// Email confirmation endpoint
+app.get("/api/confirm-email", async (c) => {
+  const token = c.req.query("token");
+  if (!token) {
+    return c.html(`<html><body style="background:#0a0a0f;color:#fff;text-align:center;padding:50px;"><h1>Token invalido</h1><p>O link de confirmacao esta incompleto.</p></body></html>`, 400);
+  }
+
+  try {
+    const db = getDb();
+    const { eq } = await import("drizzle-orm");
+    const schema = await import("@db/schema");
+
+    const users = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.confirmationToken, token))
+      .limit(1);
+
+    if (users.length === 0) {
+      return c.html(`<html><body style="background:#0a0a0f;color:#fff;text-align:center;padding:50px;"><h1>Link invalido</h1><p>Este link de confirmacao nao e valido ou ja foi utilizado.</p></body></html>`, 400);
+    }
+
+    const user = users[0];
+    await db
+      .update(schema.users)
+      .set({ emailConfirmed: 1, confirmationToken: null })
+      .where(eq(schema.users.id, user.id));
+
+    return c.html(`<html><body style="background:#0a0a0f;color:#fff;text-align:center;padding:50px;font-family:sans-serif;"><h1 style="color:#00ff9d;">Email confirmado!</h1><p>A tua conta foi ativada com sucesso.</p><p>Ja podes fazer login no MoodTrack.</p><a href="/login" style="color:#00d4ff;">Ir para Login</a></body></html>`);
+  } catch (err) {
+    console.error("[Confirm Email] Error:", err);
+    return c.html(`<html><body style="background:#0a0a0f;color:#fff;text-align:center;padding:50px;"><h1>Erro</h1><p>Ocorreu um erro. Tenta novamente.</p></body></html>`, 500);
+  }
+});
+
 // Setup admin user via secret key (for Railway deployment)
 // Only works for the authorized owner email
 app.post("/api/setup-admin", async (c) => {

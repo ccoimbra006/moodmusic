@@ -119,6 +119,10 @@ export async function setupPostgres(): Promise<boolean> {
         )
       `);
 
+      // Migration: add new columns to existing users table
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "emailConfirmed" INTEGER DEFAULT 0 NOT NULL`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "confirmationToken" VARCHAR(255)`);
+
       await client.query(`
         CREATE TABLE IF NOT EXISTS "userStreaks" (
           id SERIAL PRIMARY KEY,

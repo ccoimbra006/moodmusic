@@ -29,16 +29,54 @@ async function verifyToken(token: string) {
 
 export { verifyToken };
 
+// Password validation: min 8 chars, 1 uppercase, 1 lowercase, 1 number
+function validatePassword(password: string): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  if (password.length < 8) errors.push("A senha deve ter pelo menos 8 caracteres");
+  if (!/[A-Z]/.test(password)) errors.push("A senha deve ter pelo menos 1 letra maiuscula");
+  if (!/[a-z]/.test(password)) errors.push("A senha deve ter pelo menos 1 letra minuscula");
+  if (!/[0-9]/.test(password)) errors.push("A senha deve ter pelo menos 1 numero");
+  return { valid: errors.length === 0, errors };
+}
+
+// Generate random confirmation token
+function generateToken(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < 32; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 export const localAuthRouter = createRouter({
   register: publicQuery
     .input(
       z.object({
         name: z.string().min(1).max(255),
         email: z.string().email().max(320),
-        password: z.string().min(6).max(100),
+        password: z.string().min(8).max(100),
+        confirmPassword: z.string().min(8).max(100),
       })
     )
     .mutation(async ({ input }) => {
+      // Check passwords match
+      if (input.password !== input.confirmPassword) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "As senhas nao coincidem",
+        });
+      }
+
+      // Validate password strength
+      const pwCheck = validatePassword(input.password);
+      if (!pwCheck.valid) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: pwCheck.errors.join(". "),
+        });
+      }
+
       const db = getDb();
 
       // Check if email already exists
@@ -56,38 +94,35 @@ export const localAuthRouter = createRouter({
       }
 
       const passwordHash = await bcrypt.hash(input.password, 12);
+      const confirmationToken = generateToken();
 
-      // Insert and get the ID back (works for both SQLite and MySQL)
+      // Insert user with emailConfirmed = 0
       const result = await db.insert(schema.users).values({
         name: input.name,
         email: input.email,
         passwordHash,
+        confirmationToken,
+        emailConfirmed: 0,
         lastSignInAt: new Date(),
-      });
+      }).returning();
 
-      // Get the inserted user ID
-      console.log("[Register] Insert result:", JSON.stringify(result));
-      let userId: number;
-      if (result[0] && (typeof result[0].insertId === "number" || typeof result[0].insertId === "bigint")) {
-        userId = Number(result[0].insertId);
-        console.log("[Register] Got userId from insertId:", userId);
-      } else {
-        // Fallback: SQLite sometimes doesn't return insertId, so we select by email
-        const inserted = await db
-          .select({ id: schema.users.id })
-          .from(schema.users)
-          .where(eq(schema.users.email, input.email))
-          .limit(1);
-        if (inserted.length === 0) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao criar conta. Tenta novamente." });
-        }
-        userId = inserted[0].id;
+      const userId = result[0]?.id;
+      if (!userId) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao criar conta" });
       }
+
+      // Generate confirmation link
+      const appUrl = env.appUrl || "http://localhost:3000";
+      const confirmationLink = `${appUrl}/api/confirm-email?token=${confirmationToken}`;
+
+      console.log(`[Register] User ${userId} created. Confirm: ${confirmationLink}`);
 
       const token = await createToken(userId);
 
       return {
         token,
+        requiresConfirmation: true,
+        confirmationLink,
         user: {
           id: userId,
           name: input.name,
@@ -137,6 +172,14 @@ export const localAuthRouter = createRouter({
         });
       }
 
+      // Check if email is confirmed
+      if (user.emailConfirmed === 0) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Email nao confirmado. Verifica a tua caixa de entrada ou contacta o suporte.",
+        });
+      }
+
       // Update last sign in
       await db
         .update(schema.users)
@@ -181,6 +224,40 @@ export const localAuthRouter = createRouter({
       email: u.email ?? "",
       avatar: u.avatar ?? undefined,
       role: u.role,
+      emailConfirmed: u.emailConfirmed === 1,
     };
   }),
+
+  // Resend confirmation
+  resendConfirmation: publicQuery
+    .input(z.object({ email: z.string().email() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const users = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.email, input.email))
+        .limit(1);
+
+      if (users.length === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Email nao encontrado" });
+      }
+
+      const user = users[0];
+      if (user.emailConfirmed === 1) {
+        return { alreadyConfirmed: true };
+      }
+
+      // Generate new token
+      const newToken = generateToken();
+      await db
+        .update(schema.users)
+        .set({ confirmationToken: newToken })
+        .where(eq(schema.users.id, user.id));
+
+      const appUrl = env.appUrl || "http://localhost:3000";
+      const confirmationLink = `${appUrl}/api/confirm-email?token=${newToken}`;
+
+      return { alreadyConfirmed: false, confirmationLink };
+    }),
 });
