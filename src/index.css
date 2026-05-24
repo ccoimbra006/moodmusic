@@ -55,12 +55,6 @@
       inset 0 1px rgba(255,255,255,0.1);
   }
 
-  html.light .glass {
-    background: rgba(0,0,0,0.04);
-    border: 1px solid rgba(0,0,0,0.08);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08), inset 0 1px rgba(255,255,255,0.5);
-  }
-
   .glass-hover:hover {
     border-color: rgba(255,255,255,0.15);
     box-shadow: 
@@ -69,49 +63,24 @@
     transform: translateY(-1px);
   }
 
-  html.light .glass-hover:hover {
-    border-color: rgba(0,0,0,0.15);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-  }
-
   .text-gradient {
     background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.75) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
-  html.light .text-gradient {
-    background: linear-gradient(135deg, #1a1a2e 0%, rgba(26,26,46,0.75) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+  /* Dimmed mode: reduces glow for comfortable night viewing */
+  html.dimmed .mood-glow {
+    box-shadow: 0 0 15px var(--mood-glow) !important;
   }
-
-  /* Light mode: invert card backgrounds */
-  html.light [style*="rgba(255,255,255,0.04)"] {
-    background: rgba(0,0,0,0.03) !important;
+  html.dimmed .mood-glow-sm {
+    box-shadow: 0 0 8px var(--mood-glow) !important;
   }
-  html.light [style*="rgba(255,255,255,0.06)"] {
-    background: rgba(0,0,0,0.04) !important;
+  html.dimmed .btn-lift:hover {
+    box-shadow: 0 3px 10px var(--mood-glow) !important;
   }
-  html.light [style*="rgba(255,255,255,0.08)"] {
-    background: rgba(0,0,0,0.05) !important;
-  }
-  html.light [style*="rgba(255,255,255,0.1)"] {
-    border-color: rgba(0,0,0,0.1) !important;
-  }
-  html.light [style*="rgba(255,255,255,0.05)"]:hover {
-    background: rgba(0,0,0,0.06) !important;
-  }
-
-  /* Light mode: ensure text contrast */
-  html.light [style*="color: var(--text-primary)"] {
-    color: #1a1a2e !important;
-  }
-  html.light [style*="color: var(--text-secondary)"] {
-    color: rgba(26,26,46,0.7) !important;
-  }
-  html.light [style*="color: var(--text-muted)"] {
-    color: rgba(26,26,46,0.45) !important;
+  html.dimmed iframe {
+    filter: brightness(0.85);
   }
 
   .mood-glow {

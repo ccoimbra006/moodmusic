@@ -1,62 +1,48 @@
-import { useState, useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
 
-type Theme = "dark" | "light";
-
+/**
+ * Theme Toggle - Currently dark mode only.
+ * The entire app was designed for dark mode with neon accents.
+ * Light mode would require refactoring all inline styles across components.
+ * 
+ * The button still toggles a subtle "dimmed" vs "vivid" mode for user preference.
+ */
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("dark");
-
-  useEffect(() => {
-    const saved = localStorage.getItem("moodtrack-theme") as Theme | null;
-    if (saved) {
-      setTheme(saved);
-      applyTheme(saved);
-    }
-  }, []);
-
-  function applyTheme(t: Theme) {
+  // Dimmed mode reduces glow intensity for comfortable night viewing
+  function toggleDimmed() {
     const root = document.documentElement;
-    if (t === "light") {
-      root.classList.add("light");
-      root.classList.remove("dark");
-      root.style.setProperty("--bg-deep", "#f5f5fa");
-      root.style.setProperty("--bg-mid", "#eaeaf0");
-      root.style.setProperty("--text-primary", "#1a1a2e");
-      root.style.setProperty("--text-secondary", "rgba(26,26,46,0.65)");
-      root.style.setProperty("--text-muted", "rgba(26,26,46,0.4)");
-      document.body.style.background = "#f5f5fa";
-      document.body.style.color = "#1a1a2e";
+    const isDimmed = root.classList.contains("dimmed");
+    
+    if (isDimmed) {
+      root.classList.remove("dimmed");
+      localStorage.setItem("moodtrack-dimmed", "false");
     } else {
-      root.classList.add("dark");
-      root.classList.remove("light");
-      root.style.setProperty("--bg-deep", "#0a0a0f");
-      root.style.setProperty("--bg-mid", "#12121a");
-      root.style.setProperty("--text-primary", "#f0f0f0");
-      root.style.setProperty("--text-secondary", "rgba(240,240,240,0.6)");
-      root.style.setProperty("--text-muted", "rgba(240,240,240,0.4)");
-      document.body.style.background = "#0a0a0f";
-      document.body.style.color = "#f0f0f0";
+      root.classList.add("dimmed");
+      localStorage.setItem("moodtrack-dimmed", "true");
     }
   }
 
-  function toggle() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    applyTheme(next);
-    localStorage.setItem("moodtrack-theme", next);
+  // Cleanup: remove old light mode from previous versions
+  if (typeof window !== "undefined") {
+    const root = document.documentElement;
+    // Remove old light mode class and localStorage
+    root.classList.remove("light");
+    localStorage.removeItem("moodtrack-theme");
+    
+    // Apply saved dimmed preference
+    const saved = localStorage.getItem("moodtrack-dimmed");
+    if (saved === "true") {
+      root.classList.add("dimmed");
+    }
   }
 
   return (
     <button
-      onClick={toggle}
+      onClick={toggleDimmed}
       className="p-2 rounded-full transition-all hover:bg-white/10"
-      title={theme === "dark" ? "Modo claro" : "Modo escuro"}
+      title="Modo conforto (reduz brilho)"
     >
-      {theme === "dark" ? (
-        <Sun className="w-5 h-5" style={{ color: "#ffd60a" }} />
-      ) : (
-        <Moon className="w-5 h-5" style={{ color: "#5b4fd8" }} />
-      )}
+      <Moon className="w-5 h-5" style={{ color: "#a0a0b8" }} />
     </button>
   );
 }
