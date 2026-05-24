@@ -8,6 +8,8 @@ import { timeAgo } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { FollowButton } from "@/components/FollowButton";
+import ShareCard from "@/components/ShareCard";
+import MoodPoll from "@/components/MoodPoll";
 import { Loader2 } from "lucide-react";
 import {
   Heart,
@@ -358,6 +360,9 @@ export default function Home() {
           </div>
           )}
 
+          {/* Mood Poll */}
+          <MoodPoll />
+
           {todaySong?.spotifyId && (
             <div className="rounded-2xl overflow-hidden transition-shadow duration-500"
               style={{ background: "#000", border: `1px solid color-mix(in srgb, ${tc.color} 20%, rgba(255,255,255,0.1))`, boxShadow: `0 0 40px -10px ${tc.glow}` }}
@@ -378,12 +383,12 @@ export default function Home() {
               >
                 <ExternalLink className="w-5 h-5" /> Abrir no Spotify
               </a>
-              <button onClick={handleShare}
-                className="btn-lift inline-flex items-center gap-2.5 glass rounded-full px-6 py-3.5 text-sm font-semibold"
-                style={{ color: "var(--text-primary)" }}
-              >
-                <Share2 className="w-5 h-5" /> Compartilhar
-              </button>
+              <ShareCard
+                title={todaySong.title}
+                artist={todaySong.artist}
+                image={todaySong.image ?? undefined}
+                mood={todaySong.detectedMood ?? undefined}
+              />
             </div>
           )}
 
