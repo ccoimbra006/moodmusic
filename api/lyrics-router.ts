@@ -1,6 +1,64 @@
 import { z } from "zod";
 import { createRouter, publicQuery } from "./middleware";
 
+// Clean artist/title for better matching
+function cleanTitle(title: string): string {
+  return title
+    .replace(/\(.*?\)/g, "")
+    .replace(/\[.*?\]/g, "")
+    .replace(/\{.*?\}/g, "")
+    .replace(/feat\..*/gi, "")
+    .replace(/ft\..*/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanArtist(artist: string): string {
+  return artist
+    .replace(/\(.*?\)/g, "")
+    .replace(/,.*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Try lrclib.net (large open lyrics database)
+async function fetchFromLrclib(title: string, artist: string): Promise<string | null> {
+  try {
+    const url = `https://lrclib.net/api/search?q=${encodeURIComponent(title + " " + artist)}`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) return null;
+
+    const data = await resp.json() as { results?: Array<{ plainLyrics?: string; syncedLyrics?: string }> };
+    if (!data.results || data.results.length === 0) return null;
+
+    // Use plain lyrics (not synced/timed)
+    const lyrics = data.results[0]?.plainLyrics || data.results[0]?.syncedLyrics;
+    if (!lyrics || lyrics.length < 20) return null;
+
+    // Clean synced lyrics format if needed
+    return lyrics.replace(/\[\d{2}:\d{2}\.\d{2,3}\]/g, "").trim();
+  } catch {
+    return null;
+  }
+}
+
+// Try lyrics.ovh
+async function fetchFromLyricsOvh(title: string, artist: string): Promise<string | null> {
+  try {
+    const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) return null;
+
+    const data = await resp.json() as { lyrics?: string };
+    if (!data.lyrics || data.lyrics.length < 20) return null;
+
+    // Clean "Paroles de..." prefix
+    return data.lyrics.replace(/Paroles de .*\n?/i, "").trim();
+  } catch {
+    return null;
+  }
+}
+
 export const lyricsRouter = createRouter({
   get: publicQuery
     .input(z.object({
@@ -8,56 +66,29 @@ export const lyricsRouter = createRouter({
       artist: z.string().min(1),
     }))
     .query(async ({ input }) => {
-      try {
-        // Clean up title and artist for better matching
-        const cleanTitle = input.title
-          .replace(/\(.*?\)/g, "") // Remove parenthesis content
-          .replace(/\[.*?\]/g, "")
-          .replace(/feat\..*/gi, "")
-          .replace(/ft\..*/gi, "")
-          .replace(/\s+/g, " ")
-          .trim();
+      const cTitle = cleanTitle(input.title);
+      const cArtist = cleanArtist(input.artist);
 
-        const cleanArtist = input.artist
-          .replace(/\(.*?\)/g, "")
-          .replace(/,.*/g, "") // Use only first artist
-          .replace(/\s+/g, " ")
-          .trim();
+      console.log(`[Lyrics] Searching: "${cArtist}" - "${cTitle}"`);
 
-        console.log("[Lyrics] Searching for:", cleanArtist, "-", cleanTitle);
+      // Try lrclib.net first (better database)
+      let lyrics = await fetchFromLrclib(cTitle, cArtist);
+      let source = "lrclib.net";
 
-        // Try lyrics.ovh API with timeout
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
-
-        const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanTitle)}`;
-        const resp = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeout);
-
-        if (!resp.ok) {
-          console.log("[Lyrics] Not found:", resp.status);
-          return { lyrics: null, source: null };
-        }
-
-        const data = await resp.json() as { lyrics?: string };
-
-        if (!data.lyrics || data.lyrics.trim().length < 10) {
-          return { lyrics: null, source: null };
-        }
-
-        // Clean up lyrics - remove excessive newlines and "Paroles de..." prefix
-        let cleaned = data.lyrics
-          .replace(/Paroles de .*\n?/i, "")
-          .replace(/\r\n/g, "\n")
-          .replace(/\n{4,}/g, "\n\n\n")
-          .trim();
-
-        console.log("[Lyrics] Found! Length:", cleaned.length);
-        return { lyrics: cleaned, source: "lyrics.ovh" };
-
-      } catch (err: any) {
-        console.error("[Lyrics] Error:", err.message || err);
-        return { lyrics: null, source: null };
+      // Fallback to lyrics.ovh
+      if (!lyrics) {
+        lyrics = await fetchFromLyricsOvh(cTitle, cArtist);
+        source = "lyrics.ovh";
       }
+
+      if (lyrics) {
+        // Clean up excessive whitespace
+        lyrics = lyrics.replace(/\r\n/g, "\n").replace(/\n{4,}/g, "\n\n\n").trim();
+        console.log(`[Lyrics] Found via ${source}! Length: ${lyrics.length}`);
+        return { lyrics, source };
+      }
+
+      console.log("[Lyrics] Not found in any source");
+      return { lyrics: null, source: null };
     }),
 });

@@ -397,18 +397,19 @@ export default function Home() {
               >
                 <ExternalLink className="w-5 h-5" /> Abrir no Spotify
               </a>
-              <ShareCard
-                title={todaySong.title}
-                artist={todaySong.artist}
-                image={todaySong.image ?? undefined}
-                mood={todaySong.detectedMood ?? undefined}
-              />
-              <ShareImage
-                title={todaySong.title}
-                artist={todaySong.artist}
-                image={todaySong.image ?? undefined}
-                mood={todaySong.detectedMood ?? undefined}
-              />
+              <div className="flex items-center justify-center gap-3 w-full">
+                <ShareCard
+                  title={todaySong.title}
+                  artist={todaySong.artist}
+                  moodColor={tc.color}
+                />
+                <ShareImage
+                  title={todaySong.title}
+                  artist={todaySong.artist}
+                  image={todaySong.image ?? undefined}
+                  mood={todaySong.detectedMood ?? undefined}
+                />
+              </div>
             </div>
           )}
 
