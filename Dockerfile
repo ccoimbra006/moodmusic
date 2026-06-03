@@ -22,5 +22,8 @@ COPY . .
 # Build the app (Vite frontend + esbuild backend)
 RUN npm run build
 
-# Start the server (port is set by Railway via PORT env var)
+# Expose the port Railway uses
+EXPOSE 8080
+
+# Start the server
 CMD ["npm", "start"]
