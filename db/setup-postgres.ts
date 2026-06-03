@@ -169,6 +169,19 @@ export async function setupPostgres(): Promise<boolean> {
       `);
 
       await client.query(`
+        CREATE TABLE IF NOT EXISTS "moodArtists" (
+          id SERIAL PRIMARY KEY,
+          mood VARCHAR(50) NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          "spotifyId" VARCHAR(255),
+          image TEXT,
+          category VARCHAR(20) DEFAULT 'famous' NOT NULL,
+          genres TEXT,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+        )
+      `);
+
+      await client.query(`
         CREATE TABLE IF NOT EXISTS "moodVotes" (
           id SERIAL PRIMARY KEY,
           "pollId" INTEGER NOT NULL REFERENCES "moodPolls"(id),

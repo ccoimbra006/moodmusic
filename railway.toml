@@ -1,5 +1,5 @@
 [deploy]
 startCommand = "npm start"
 healthcheckPath = "/api/debug/env"
-healthcheckTimeout = 100
+healthcheckTimeout = 30000
 restartPolicyType = "on_failure"

@@ -6,6 +6,7 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Explore from "./pages/Explore";
 import Leaderboard from "./pages/Leaderboard";
+import Recommendations from "./pages/Recommendations";
 import NotFound from "./pages/NotFound";
 import MoodBackground from "@/components/MoodBackground";
 import { Toaster } from "@/components/ui/sonner";
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/descobrir" element={<Recommendations />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>

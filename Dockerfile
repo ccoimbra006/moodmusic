@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# Install PostgreSQL client and build tools
+# Install build tools for native dependencies
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     python3 \
@@ -22,12 +22,5 @@ COPY . .
 # Build the app (Vite frontend + esbuild backend)
 RUN npm run build
 
-# Run database migrations
-RUN npm run db:push || true
-
-# Expose the port Railway uses
-ENV PORT=3000
-EXPOSE 3000
-
-# Start the server
+# Start the server (port is set by Railway via PORT env var)
 CMD ["npm", "start"]

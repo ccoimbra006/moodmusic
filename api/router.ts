@@ -16,6 +16,7 @@ import { badgesRouter } from "./badges-router";
 import { notificationsRouter } from "./notifications-router";
 import { pollsRouter } from "./polls-router";
 import { lyricsRouter } from "./lyrics-router";
+import { recommendationsRouter } from "./recommendations-router";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -38,6 +39,7 @@ export const appRouter = createRouter({
   notifications: notificationsRouter,
   polls: pollsRouter,
   lyrics: lyricsRouter,
+  recommendations: recommendationsRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Music, User, LogOut, Shield, Menu, X, Trophy, Search } from "lucide-react";
+import { Music, User, LogOut, Shield, Menu, X, Trophy, Search, Sparkles } from "lucide-react";
 import NotificationsBell from "./NotificationsBell";
 import StreakDisplay from "./StreakDisplay";
 import ThemeToggle from "./ThemeToggle";
@@ -110,6 +110,17 @@ export default function Layout({ children }: LayoutProps) {
                   >
                     <Search className="w-4 h-4 mr-1.5" />
                     Explorar
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/descobrir")}
+                    className="btn-lift text-xs hidden lg:flex h-9 px-3"
+                    style={{ color: location.pathname === "/descobrir" ? mc.color : "var(--text-secondary)" }}
+                  >
+                    <Sparkles className="w-4 h-4 mr-1.5" />
+                    Descobrir
                   </Button>
 
                   <Button

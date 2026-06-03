@@ -165,3 +165,17 @@ export const moodVotes = pgTable("moodVotes", {
 });
 
 export type MoodVote = typeof moodVotes.$inferSelect;
+
+// ── MoodArtists: artistas associados a moods ──
+export const moodArtists = pgTable("moodArtists", {
+  id: serial("id").primaryKey(),
+  mood: text("mood", { length: 50 }).notNull(),
+  name: text("name", { length: 255 }).notNull(),
+  spotifyId: text("spotifyId", { length: 255 }),
+  image: text("image"),
+  category: text("category", { length: 20 }).default("famous").notNull(), // "famous" ou "underground"
+  genres: text("genres"), // JSON array
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type MoodArtist = typeof moodArtists.$inferSelect;
