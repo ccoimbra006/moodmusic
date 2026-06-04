@@ -82,22 +82,30 @@ const MOOD_ARTISTS: Record<string, Array<{ name: string; category: "famous" | "u
 
 // ── Seed artists to DB ──
 async function seedArtists() {
-  const db = getDb();
-  const existing = await db.select({ count: sql<number>`count(*)` }).from(schema.moodArtists);
-  if ((existing[0]?.count ?? 0) > 0) return; // Already seeded
-
-  console.log("[Recommendations] Seeding mood artists...");
-  for (const [mood, artists] of Object.entries(MOOD_ARTISTS)) {
-    for (const artist of artists) {
-      await db.insert(schema.moodArtists).values({
-        mood,
-        name: artist.name,
-        category: artist.category,
-        genres: JSON.stringify(artist.genres),
-      });
+  try {
+    const db = getDb();
+    const existing = await db.select({ count: sql<number>`count(*)` }).from(schema.moodArtists);
+    if ((existing[0]?.count ?? 0) > 0) {
+      console.log("[Recommendations] Artists already seeded:", existing[0].count);
+      return;
     }
+
+    console.log("[Recommendations] Seeding mood artists...");
+    for (const [mood, artists] of Object.entries(MOOD_ARTISTS)) {
+      for (const artist of artists) {
+        await db.insert(schema.moodArtists).values({
+          mood,
+          name: artist.name,
+          category: artist.category,
+          genres: JSON.stringify(artist.genres),
+        });
+      }
+    }
+    console.log("[Recommendations] Seeded", Object.values(MOOD_ARTISTS).flat().length, "artists");
+  } catch (err: any) {
+    console.error("[Recommendations] Seed error:", err.message);
+    // If table doesn't exist, seeding will fail but we still return fallback data
   }
-  console.log("[Recommendations] Seeded", Object.values(MOOD_ARTISTS).flat().length, "artists");
 }
 
 // ── Spotify token ──
@@ -174,17 +182,39 @@ export const recommendationsRouter = createRouter({
   byMood: publicQuery
     .input(z.object({ mood: z.string(), limit: z.number().min(1).max(20).default(6) }))
     .query(async ({ input }) => {
+      console.log(`[Recommendations] Requested mood: ${input.mood}`);
+
       // Seed on first call
       await seedArtists();
 
       const db = getDb();
       const token = await getSpotifyToken();
+      console.log(`[Recommendations] Spotify token: ${token ? "OK" : "NOT SET"}`);
 
-      // Get artists for this mood
-      const artists = await db
-        .select()
-        .from(schema.moodArtists)
-        .where(eq(schema.moodArtists.mood, input.mood));
+      // Get artists for this mood from DB, fallback to static data
+      let artists: any[] = [];
+      try {
+        artists = await db
+          .select()
+          .from(schema.moodArtists)
+          .where(eq(schema.moodArtists.mood, input.mood));
+        console.log(`[Recommendations] Found ${artists.length} artists in DB for ${input.mood}`);
+      } catch (err: any) {
+        console.error("[Recommendations] DB error:", err.message);
+        // Fallback to static data
+        const staticArtists = MOOD_ARTISTS[input.mood];
+        if (staticArtists) {
+          artists = staticArtists.map((a, i) => ({
+            id: i + 1,
+            mood: input.mood,
+            name: a.name,
+            category: a.category,
+            genres: JSON.stringify(a.genres),
+            image: null,
+          }));
+          console.log(`[Recommendations] Using ${artists.length} static artists`);
+        }
+      }
 
       if (artists.length === 0) {
         return { tracks: [], mood: input.mood };
@@ -204,7 +234,7 @@ export const recommendationsRouter = createRouter({
               id: track.id,
               title: track.name,
               artist: track.artists?.map((a: any) => a.name).join(", "),
-              image: track.album?.images?.[0]?.url || artist.image,
+              image: track.album?.images?.[0]?.url || track.artistImage,
               previewUrl: track.preview_url,
               spotifyUrl: track.external_urls?.spotify,
               spotifyId: track.id,
@@ -212,24 +242,25 @@ export const recommendationsRouter = createRouter({
               artistCategory: artist.category,
               artistGenres: artist.genres ? JSON.parse(artist.genres) : [],
             });
+            continue;
           }
-        } else {
-          // Fallback: return artist info without track
-          tracks.push({
-            id: `artist-${artist.id}`,
-            title: `Top tracks de ${artist.name}`,
-            artist: artist.name,
-            image: artist.image,
-            previewUrl: null,
-            spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(artist.name)}`,
-            spotifyId: null,
-            album: null,
-            artistCategory: artist.category,
-            artistGenres: artist.genres ? JSON.parse(artist.genres) : [],
-          });
         }
+        // Fallback: return artist info
+        tracks.push({
+          id: `artist-${artist.id}`,
+          title: `Top tracks de ${artist.name}`,
+          artist: artist.name,
+          image: artist.image,
+          previewUrl: null,
+          spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(artist.name)}`,
+          spotifyId: null,
+          album: null,
+          artistCategory: artist.category,
+          artistGenres: artist.genres ? JSON.parse(artist.genres) : [],
+        });
       }
 
+      console.log(`[Recommendations] Returning ${tracks.length} tracks`);
       return { tracks, mood: input.mood };
     }),
 
@@ -238,16 +269,51 @@ export const recommendationsRouter = createRouter({
     await seedArtists();
     const db = getDb();
 
-    const rows = await db
-      .select({
-        mood: schema.moodArtists.mood,
-        total: sql<number>`count(*)`,
-        famous: sql<number>`sum(case when ${schema.moodArtists.category} = 'famous' then 1 else 0 end)`,
-        underground: sql<number>`sum(case when ${schema.moodArtists.category} = 'underground' then 1 else 0 end)`,
-      })
-      .from(schema.moodArtists)
-      .groupBy(schema.moodArtists.mood);
+    try {
+      const rows = await db
+        .select({
+          mood: schema.moodArtists.mood,
+          total: sql<number>`count(*)`,
+          famous: sql<number>`sum(case when ${schema.moodArtists.category} = 'famous' then 1 else 0 end)`,
+          underground: sql<number>`sum(case when ${schema.moodArtists.category} = 'underground' then 1 else 0 end)`,
+        })
+        .from(schema.moodArtists)
+        .groupBy(schema.moodArtists.mood);
+      return rows;
+    } catch (err: any) {
+      console.error("[Recommendations] moods error:", err.message);
+      // Return static counts
+      return Object.entries(MOOD_ARTISTS).map(([mood, artists]) => ({
+        mood,
+        total: artists.length,
+        famous: artists.filter((a) => a.category === "famous").length,
+        underground: artists.filter((a) => a.category === "underground").length,
+      }));
+    }
+  }),
 
-    return rows;
+  // Debug: check if recommendations are working
+  debug: publicQuery.query(async () => {
+    const db = getDb();
+    let dbStatus = "unknown";
+    let artistCount = 0;
+
+    try {
+      const result = await db.select({ count: sql<number>`count(*)` }).from(schema.moodArtists);
+      artistCount = result[0]?.count ?? 0;
+      dbStatus = "connected";
+    } catch (err: any) {
+      dbStatus = `error: ${err.message}`;
+    }
+
+    const spotifyToken = await getSpotifyToken();
+
+    return {
+      dbStatus,
+      artistCount,
+      spotifyConfigured: !!spotifyToken,
+      moodsAvailable: Object.keys(MOOD_ARTISTS),
+      totalStaticArtists: Object.values(MOOD_ARTISTS).flat().length,
+    };
   }),
 });
