@@ -3,12 +3,12 @@ import { useNavigate } from "react-router";
 import { trpc } from "@/providers/trpc";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentMood } from "@/hooks/useMood";
-import { getMoodColors } from "@/lib/moods";
+import { getMoodColors, ALL_MOODS } from "@/lib/moods";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Search, Plus, ArrowLeft, Music, Loader2, Crown, Users, UserCheck, Calendar } from "lucide-react";
+import { Search, Plus, ArrowLeft, Music, Loader2, Crown, Users, UserCheck, Calendar, Wand2, Trash2, Disc3, CheckCircle2 } from "lucide-react";
 
 interface SpotifyTrack {
   id: string;
@@ -28,6 +28,9 @@ export default function Admin() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SpotifyTrack[]>([]);
   const [searching, setSearching] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<SpotifyTrack | null>(null);
+  const [selectedMood, setSelectedMood] = useState<string>("");
+  const [autoDetectedMood, setAutoDetectedMood] = useState<string>("");
   const utils = trpc.useUtils();
   const isAdmin = user?.role === "admin";
 
@@ -49,13 +52,23 @@ export default function Admin() {
   const { data: userCount } = trpc.users.count.useQuery(undefined, { enabled: isAdmin });
   const { data: usersList } = trpc.users.list.useQuery(undefined, { enabled: isAdmin });
 
+  // Today's song
+  const { data: todaySongData } = trpc.songs.getToday.useQuery();
+  const removeSong = trpc.songs.delete.useMutation({
+    onSuccess: () => {
+      utils.songs.getToday.invalidate();
+      toast.success("Musica do dia removida!");
+    },
+    onError: () => toast.error("Erro ao remover musica"),
+  });
+
   const handleSearch = () => {
     if (!query.trim()) return;
     setSearching(true);
     searchSpotify.mutate({ q: query.trim() });
   };
 
-  const handlePublish = (track: SpotifyTrack) => {
+  const handlePublish = (track: SpotifyTrack, mood?: string) => {
     publishSong.mutate({
       spotifyId: track.id,
       title: track.title,
@@ -63,7 +76,37 @@ export default function Admin() {
       album: track.album,
       image: track.image,
       spotifyUrl: track.spotifyUrl,
+      detectedMood: mood || undefined,
+    }, {
+      onSuccess: () => {
+        setSelectedTrack(null);
+        setSelectedMood("");
+        setAutoDetectedMood("");
+      },
     });
+  };
+
+  const openMoodSelector = async (track: SpotifyTrack) => {
+    setSelectedTrack(track);
+    setSelectedMood("");
+    setAutoDetectedMood("");
+
+    // Try to detect mood automatically
+    try {
+      const response = await fetch(`/api/trpc/lyrics.get?input=${encodeURIComponent(JSON.stringify({ title: track.title, artist: track.artist }))}`);
+      // We use a simpler approach - just let the backend detect on publish
+      // But we can try to give a preview by calling the mood detector
+      const moodRes = await fetch(`/api/trpc/mood.detect?input=${encodeURIComponent(JSON.stringify({ title: track.title, artist: track.artist }))}`).catch(() => null);
+      if (moodRes) {
+        const moodData = await moodRes.json();
+        if (moodData?.result?.data) {
+          setAutoDetectedMood(moodData.result.data.mood || "");
+          setSelectedMood(moodData.result.data.mood || "");
+        }
+      }
+    } catch {
+      // Ignore auto-detect errors
+    }
   };
 
   if (isLoading) {
@@ -102,6 +145,73 @@ export default function Admin() {
           <p style={{ color: "var(--text-muted)" }}>Busque e publique a Musica do Dia</p>
         </div>
       </div>
+
+      {/* Today's Song Status */}
+      {todaySongData?.song && (
+        <Card className="mb-8 overflow-hidden" style={{
+          background: "rgba(255,255,255,0.06)",
+          backdropFilter: "blur(24px)",
+          border: `1px solid color-mix(in srgb, ${getMoodColors(todaySongData.song.detectedMood).color} 30%, rgba(255,255,255,0.1))`,
+        }}>
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle2 className="w-4 h-4" style={{ color: getMoodColors(todaySongData.song.detectedMood).color }} />
+              <h2 className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Musica do Dia - Ativa</h2>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0" style={{ background: "var(--bg-mid)" }}>
+                {todaySongData.song.image ? (
+                  <img src={todaySongData.song.image} alt={todaySongData.song.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Disc3 className="w-8 h-8" style={{ color: getMoodColors(todaySongData.song.detectedMood).color, opacity: 0.5 }} />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-lg truncate">{todaySongData.song.title}</div>
+                <div className="text-sm truncate" style={{ color: "var(--text-secondary)" }}>{todaySongData.song.artist}</div>
+                {todaySongData.song.detectedMood && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full mt-1 inline-block font-bold"
+                    style={{
+                      background: `${getMoodColors(todaySongData.song.detectedMood).color}15`,
+                      color: getMoodColors(todaySongData.song.detectedMood).color,
+                    }}
+                  >
+                    {todaySongData.song.detectedMood?.toUpperCase()}
+                  </span>
+                )}
+              </div>
+
+              <Button
+                onClick={() => todaySongData.song && removeSong.mutate({ id: todaySongData.song.id })}
+                disabled={removeSong.isPending}
+                variant="outline"
+                size="sm"
+                className="rounded-xl h-9 px-3 shrink-0"
+                style={{ borderColor: "rgba(255,68,68,0.3)", color: "#ff4444" }}
+              >
+                {removeSong.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Trash2 className="w-4 h-4 mr-1.5" /> Remover</>}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* No song message */}
+      {!todaySongData?.song && (
+        <Card className="mb-8" style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <CardContent className="p-5 sm:p-6 flex items-center gap-3">
+            <Disc3 className="w-5 h-5" style={{ color: "var(--text-muted)" }} />
+            <span className="text-sm" style={{ color: "var(--text-muted)" }}>Nenhuma Musica do Dia publicada. Busca e publica uma abaixo.</span>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search */}
       <Card className="mb-8" style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(24px)", border: `1px solid color-mix(in srgb, ${mc.color} 20%, rgba(255,255,255,0.1))` }}>
@@ -154,15 +264,117 @@ export default function Admin() {
                 <div className="font-bold text-sm truncate">{track.title}</div>
                 <div className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>{track.artist} &bull; {track.album}</div>
               </div>
-              <Button onClick={() => handlePublish(track)} disabled={publishSong.isPending}
-                className="w-11 h-11 rounded-full p-0 transition-all hover:scale-110 hover:rotate-90 disabled:opacity-50"
+              <Button onClick={() => openMoodSelector(track)}
+                className="w-11 h-11 rounded-full p-0 transition-all hover:scale-110 disabled:opacity-50"
                 style={{ background: `linear-gradient(135deg, ${mc.color}, ${mc.color2})`, boxShadow: `0 4px 15px ${mc.glow}` }}
               >
-                {publishSong.isPending ? <Loader2 className="w-5 h-5 animate-spin text-black" /> : <Plus className="w-5 h-5 text-black" />}
+                <Plus className="w-5 h-5 text-black" />
               </Button>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Mood Selector - appears when admin selects a track */}
+      {selectedTrack && (
+        <Card className="mb-8 overflow-hidden" style={{
+          background: "rgba(255,255,255,0.06)",
+          backdropFilter: "blur(24px)",
+          border: `2px solid ${mc.color}40`,
+          boxShadow: `0 0 40px ${mc.glow}30`,
+        }}>
+          <CardContent className="p-5 sm:p-6">
+            {/* Selected track info */}
+            <div className="flex items-center gap-4 mb-6 p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
+              <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0" style={{ background: "var(--bg-mid)" }}>
+                {selectedTrack.image ? (
+                  <img src={selectedTrack.image} alt={selectedTrack.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-2xl">♪</div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-lg truncate">{selectedTrack.title}</div>
+                <div className="text-sm truncate" style={{ color: "var(--text-secondary)" }}>{selectedTrack.artist}</div>
+              </div>
+            </div>
+
+            {/* Mood selector */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Wand2 className="w-4 h-4" style={{ color: mc.color }} />
+                <h3 className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
+                  Escolhe o Mood
+                </h3>
+                {autoDetectedMood && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full ml-auto" style={{ background: `${mc.color}15`, color: mc.color }}>
+                    Auto: {autoDetectedMood}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {ALL_MOODS.map((m) => {
+                  const mmc = getMoodColors(m.key);
+                  const isSelected = selectedMood === m.key;
+                  return (
+                    <button
+                      key={m.key}
+                      onClick={() => setSelectedMood(m.key)}
+                      className="flex flex-col items-center gap-1 p-3 rounded-xl transition-all"
+                      style={{
+                        background: isSelected ? `linear-gradient(135deg, ${mmc.color}, ${mmc.color2})` : "rgba(255,255,255,0.04)",
+                        border: isSelected ? `2px solid ${mmc.color}` : "1px solid rgba(255,255,255,0.1)",
+                        boxShadow: isSelected ? `0 4px 15px ${mmc.glow}` : "none",
+                        transform: isSelected ? "scale(1.05)" : "scale(1)",
+                      }}
+                    >
+                      <span className="text-xl">{m.emoji}</span>
+                      <span className="text-[10px] font-bold" style={{ color: isSelected ? "#fff" : "var(--text-secondary)" }}>
+                        {m.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-3">
+              <Button
+                onClick={() => { setSelectedTrack(null); setSelectedMood(""); }}
+                variant="outline"
+                className="flex-1 h-11 rounded-xl text-xs"
+                style={{ borderColor: "rgba(255,255,255,0.2)", color: "var(--text-muted)" }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => selectedMood && handlePublish(selectedTrack, selectedMood)}
+                disabled={!selectedMood || publishSong.isPending}
+                className="flex-1 h-11 rounded-xl text-xs font-bold text-black disabled:opacity-50"
+                style={{
+                  background: selectedMood
+                    ? `linear-gradient(135deg, ${getMoodColors(selectedMood).color}, ${getMoodColors(selectedMood).color2})`
+                    : "rgba(255,255,255,0.1)",
+                  boxShadow: selectedMood ? `0 4px 20px ${getMoodColors(selectedMood).glow}` : "none",
+                }}
+              >
+                {publishSong.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <><Plus className="w-4 h-4 mr-1" /> Publicar</>
+                )}
+              </Button>
+            </div>
+
+            {!selectedMood && (
+              <p className="text-xs text-center mt-3" style={{ color: "var(--text-muted)" }}>
+                Seleciona um mood acima para publicar
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {results.length === 0 && !searching && query && (

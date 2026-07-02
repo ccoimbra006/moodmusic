@@ -67,33 +67,40 @@ export const songsRouter = createRouter({
         image: z.string().optional(),
         spotifyUrl: z.string().optional(),
         description: z.string().optional(),
+        detectedMood: z.string().optional(), // Admin can override mood
       })
     )
     .mutation(async ({ input, ctx }) => {
       const db = getDb();
 
-      // Detect mood from Spotify audio features
-      let detectedMood: string | null = null;
-      try {
-        const token = await getSpotifyToken();
-        console.log("[MoodDetect] Got Spotify token, fetching audio features for:", input.spotifyId);
-        const features = await getAudioFeatures(input.spotifyId, token);
-        if (features) {
-          detectedMood = detectMood(features.energy, features.valence, input.title, input.artist);
-          console.log("[MoodDetect] Energy:", features.energy, "Valence:", features.valence, "=> Mood:", detectedMood);
-        } else {
-          // Fallback: detect mood from title + artist using keyword matching
-          const textMood = detectMoodFromText(input.title, input.artist);
-          if (textMood) {
-            detectedMood = textMood;
-            console.log("[MoodDetect] Using text-based mood detection:", detectedMood);
+      // Use admin-selected mood if provided, otherwise auto-detect
+      let detectedMood: string | null = input.detectedMood ?? null;
+
+      if (!detectedMood) {
+        // Auto-detect mood from Spotify audio features
+        try {
+          const token = await getSpotifyToken();
+          console.log("[MoodDetect] Got Spotify token, fetching audio features for:", input.spotifyId);
+          const features = await getAudioFeatures(input.spotifyId, token);
+          if (features) {
+            detectedMood = detectMood(features.energy, features.valence, input.title, input.artist);
+            console.log("[MoodDetect] Energy:", features.energy, "Valence:", features.valence, "=> Mood:", detectedMood);
           } else {
-            console.log("[MoodDetect] No audio features found for track:", input.spotifyId);
+            // Fallback: detect mood from title + artist using keyword matching
+            const textMood = detectMoodFromText(input.title, input.artist);
+            if (textMood) {
+              detectedMood = textMood;
+              console.log("[MoodDetect] Using text-based mood detection:", detectedMood);
+            } else {
+              console.log("[MoodDetect] No audio features found for track:", input.spotifyId);
+            }
           }
+        } catch (err) {
+          console.error("[MoodDetect] Failed to get audio features:", err);
+          // If audio features fail, leave detectedMood as null
         }
-      } catch (err) {
-        console.error("[MoodDetect] Failed to get audio features:", err);
-        // If audio features fail, leave detectedMood as null
+      } else {
+        console.log("[MoodDetect] Using admin-selected mood:", detectedMood);
       }
 
       // Check if song already exists for today
